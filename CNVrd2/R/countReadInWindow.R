@@ -2,7 +2,7 @@
 setMethod("countReadInWindow", "CNVrd2",
           function(Object, correctGC = FALSE, standardizingAllSamples = TRUE,
                    rawReadCount = FALSE, byGCcontent = 5,
-                   referenceGenome = "BSgenome.Hsapiens.UCSC.hg19",reference_fasta=NULL){
+                   referenceGenome = "BSgenome.Hsapiens.UCSC.hg19",reference_fasta=NULL,gzipped=F){
 
               if (correctGC){
                   if(is.null(reference_fasta)){
@@ -30,9 +30,13 @@ setMethod("countReadInWindow", "CNVrd2",
                   dirBamFile <- paste(dirBamFile, "/", sep = "")
               if (substr(dirCoordinate, length(dirCoordinate), 1) != "/")
                   dirCoordinate <- paste(dirCoordinate, "/", sep = "")
+              if (gzipped){
+                bamFile <- dir(path = dirBamFile, pattern = ".bam.gz$")
+                
 
-              bamFile <- dir(path = dirBamFile, pattern = ".bam$")
-
+              } else {
+                bamFile <- dir(path = dirBamFile, pattern = ".bam$")
+              }
               ##########################################################
               #######Function to divide reads into windows##############
               getWindows <- function(data, windows, st){
@@ -49,7 +53,12 @@ setMethod("countReadInWindow", "CNVrd2",
 
               ###Function to read Bam files and write out coordinates###############
               countReadForBamFile <- function(x){
-                    bam <- scanBam(paste(dirBamFile, bamFile[x], sep = ""),  param=param)[[1]]$pos
+                    if(gzipped){
+                        gzip_bam  <- 
+                    } else {
+                        bam <- scanBam(paste(dirBamFile, bamFile[x], sep = ""),  param=param)[[1]]$pos
+
+                    }
                     bam <- bam[!is.na(bam)]
 
                     
@@ -82,9 +91,7 @@ setMethod("countReadInWindow", "CNVrd2",
                       chr <- as.character(chr)
                       if(is.null(reference_fasta)){
                       tempG <- unmasked(referenceGenome[[chr]])[(st):en]} else{
-                      print(chr)
-                      print(referenceGenome)
-                      tempG  <- referenceGenome$chr[st:en]
+                      tempG  <- do.call("$",list(referenceGenome,chr))[st:en]
     }
                       gc <- c()
                       temp <- seq(1, length(tempG), by = windows)
