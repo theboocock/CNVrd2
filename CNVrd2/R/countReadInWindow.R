@@ -2,7 +2,7 @@
 setMethod("countReadInWindow", "CNVrd2",
           function(Object, correctGC = FALSE, standardizingAllSamples = TRUE,
                    rawReadCount = FALSE, byGCcontent = 5,
-                   referenceGenome = "BSgenome.Hsapiens.UCSC.hg19",reference_fasta=NULL,gzipped=F){
+                   referenceGenome = "BSgenome.Hsapiens.UCSC.hg19",reference_fasta=NULL,aws_data=F){
 
               if (correctGC){
                   if(is.null(reference_fasta)){
@@ -30,8 +30,8 @@ setMethod("countReadInWindow", "CNVrd2",
                   dirBamFile <- paste(dirBamFile, "/", sep = "")
               if (substr(dirCoordinate, length(dirCoordinate), 1) != "/")
                   dirCoordinate <- paste(dirCoordinate, "/", sep = "")
-              if (gzipped){
-                bamFile <- dir(path = dirBamFile, pattern = ".bam.gz$")
+              if (aws_data){
+                bamFile <- dir(path = dirBamFile, pattern = ".cnv.gz$")
                 
 
               } else {
@@ -53,12 +53,7 @@ setMethod("countReadInWindow", "CNVrd2",
 
               ###Function to read Bam files and write out coordinates###############
               countReadForBamFile <- function(x){
-                    if(gzipped){
-                        gzip_bam  <- 
-                    } else {
                         bam <- scanBam(paste(dirBamFile, bamFile[x], sep = ""),  param=param)[[1]]$pos
-
-                    }
                     bam <- bam[!is.na(bam)]
 
                     
@@ -86,6 +81,13 @@ setMethod("countReadInWindow", "CNVrd2",
 ########Correct GC content###############################################################
 
               if (correctGC){
+                  gcContentEachWindow <- function(ii,ref_sequence,temp){
+                  gc  <- NA
+                  print(ii)
+                                 gc <- sum(alphabetFrequency(ref_sequence[temp[ii]:(temp[ii+1] - 1)], baseOnly= TRUE)[2:3])/windows
+                return(gc)
+                          }
+
                   gcContent <- function(){
                       message("Correcting the GC content")
                       chr <- as.character(chr)
@@ -93,19 +95,39 @@ setMethod("countReadInWindow", "CNVrd2",
                       tempG <- unmasked(referenceGenome[[chr]])[(st):en]} else{
                       tempG  <- do.call("$",list(referenceGenome,chr))[st:en]
     }
+                      message("Here")
                       gc <- c()
                       temp <- seq(1, length(tempG), by = windows)
+                      print(length(temp))
+                      indexes <- seq(1,length(temp)-1)
+                      temp_dna = as.character(tempG)
+                      DNA_list <- c()
+                      for ( ii in 1:length(temp)){
+                        print(ii)
+                        DNA_list[ii]  <- substr(temp_dna,temp[ii],(temp[ii+1]-1))
+                    }
+                     #   tempG
+                     # }
+                      #lapply(indexes,ref_sequence=tempG)
+                      Rprof('gcContent.tmp',line.profiling=T)
+                      gc  <-  sapply(indexes,gcContentEachWindow,ref_sequence=tempG,temp=temp)
+                      gc[length[gc]+1] <- sum(alphabetFrequency(ref_sequence[temp[ii]:length(ref_sequence)], baseOnly= TRUE)[2:3])/windows
+                      Rprof(NULL)
+                      message("Work")
                       for (ii in 1:length(temp)){
                           if (temp[ii] < (length(tempG) - windows))
                                  gc[ii] <- sum(alphabetFrequency(tempG[temp[ii]:(temp[ii+1] - 1)], baseOnly= TRUE)[2:3])/windows
                               else
                               gc[ii] <- sum(alphabetFrequency(tempG[temp[ii]:length(tempG)], baseOnly= TRUE)[2:3])/windows
                           }
+                      
                       gc <- ifelse(is.na(gc), 0, gc)
                       return(gc)
                       }
 ################################################################################
+                  message("Adjusting by GC content")
                        gcn <- 100*gcContent()
+                  return(gcn)
                   gcn <- gcn[1:numberofWindows]
                                           
 
